@@ -5,6 +5,7 @@ Endpoints:
   GET  /api/shipments             — return all shipments
   GET  /api/shipments?id=SHP1001  — return one shipment by ID
   POST /api/shipments             — add or overwrite a shipment (JSON body)
+                                    existing fields are preserved if not included
 """
 
 import json
@@ -184,40 +185,62 @@ class ShippingHandler(BaseHTTPRequestHandler):
                                  "message": "Request body must be valid JSON"})
             return
 
-        shipping_id    = str(body.get("shipping_id",       "")).strip().upper()
-        date_departure = str(body.get("date_of_departure", "")).strip()
-        date_arrival   = str(body.get("date_of_arrival",   "")).strip()
+        shipping_id = str(body.get("shipping_id", "")).strip().upper()
 
-        if not all([shipping_id, date_departure, date_arrival]):
+        if not shipping_id:
             self.send_json(400, {"status": 400, "error": "Bad Request",
-                                 "message": "Required fields: shipping_id, date_of_departure, date_of_arrival"})
+                                 "message": "shipping_id is required"})
             return
 
-        dep_dt = parse_date(date_departure)
-        arr_dt = parse_date(date_arrival)
-        if not dep_dt or not arr_dt:
-            self.send_json(400, {"status": 400, "error": "Bad Request",
-                                 "message": "Dates must be in YYYY-MM-DD format"})
-            return
-
-        if arr_dt <= dep_dt:
-            self.send_json(400, {"status": 400, "error": "Bad Request",
-                                 "message": "date_of_arrival must be after date_of_departure"})
-            return
-
+        # Load existing record as base (if overwriting), otherwise start fresh
         is_overwrite = shipping_id in shipments
-        shipments[shipping_id] = {
+        existing = shipments[shipping_id].copy() if is_overwrite else {
             "shipping_id":            shipping_id,
-            "manufacturer":           str(body.get("manufacturer",           "")).strip(),
-            "manufacturer_email":     str(body.get("manufacturer_email",     "")).strip(),
-            "shipping_company":       str(body.get("shipping_company",       "")).strip(),
-            "shipping_company_email": str(body.get("shipping_company_email", "")).strip(),
-            "date_of_departure":      date_departure,
-            "date_of_arrival":        date_arrival,
+            "manufacturer":           "",
+            "manufacturer_email":     "",
+            "shipping_company":       "",
+            "shipping_company_email": "",
+            "date_of_departure":      "",
+            "date_of_arrival":        "",
         }
 
+        # Only update fields that are explicitly provided in the request
+        optional_fields = [
+            "manufacturer", "manufacturer_email",
+            "shipping_company", "shipping_company_email"
+        ]
+        for field in optional_fields:
+            if field in body:
+                existing[field] = str(body[field]).strip()
+
+        date_departure = str(body.get("date_of_departure", existing["date_of_departure"])).strip()
+        date_arrival   = str(body.get("date_of_arrival",   existing["date_of_arrival"])).strip()
+
+        # Validate dates only if provided or required (new record)
+        if not is_overwrite and not all([date_departure, date_arrival]):
+            self.send_json(400, {"status": 400, "error": "Bad Request",
+                                 "message": "date_of_departure and date_of_arrival are required for new shipments"})
+            return
+
+        if date_departure and date_arrival:
+            dep_dt = parse_date(date_departure)
+            arr_dt = parse_date(date_arrival)
+            if not dep_dt or not arr_dt:
+                self.send_json(400, {"status": 400, "error": "Bad Request",
+                                     "message": "Dates must be in YYYY-MM-DD format"})
+                return
+            if arr_dt <= dep_dt:
+                self.send_json(400, {"status": 400, "error": "Bad Request",
+                                     "message": "date_of_arrival must be after date_of_departure"})
+                return
+
+        existing["date_of_departure"] = date_departure
+        existing["date_of_arrival"]   = date_arrival
+        existing["shipping_id"]       = shipping_id
+        shipments[shipping_id]        = existing
+
         status_code = 200 if is_overwrite else 201
-        message     = "Shipment updated (overwritten)" if is_overwrite else "Shipment created successfully"
+        message     = "Shipment updated (missing fields kept from previous record)" if is_overwrite else "Shipment created successfully"
         self.send_json(status_code, {"status": status_code, "message": message,
                                      "data": shipments[shipping_id]})
 
