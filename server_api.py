@@ -1,6 +1,6 @@
 """
 Shipping API Server — no dependencies, uses Python built-ins only.
-Run with:  python3 server_api.py
+Run locally:  python3 server_api.py
 Endpoints:
   GET  /api/shipments             — return all shipments
   GET  /api/shipments?id=SHP1001  — return one shipment by ID
@@ -8,26 +8,123 @@ Endpoints:
 """
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
-PORT = 8080
+PORT = int(os.environ.get("PORT", 8080))
 
 # ── Notional dataset ──────────────────────────────────────────────────────────
 shipments = {
-    "SHP1001": {"shipping_id": "SHP1001", "date_of_departure": "2026-03-30", "date_of_arrival": "2026-04-02"},
-    "SHP1002": {"shipping_id": "SHP1002", "date_of_departure": "2026-04-01", "date_of_arrival": "2026-04-05"},
-    "SHP1003": {"shipping_id": "SHP1003", "date_of_departure": "2026-04-03", "date_of_arrival": "2026-04-07"},
-    "SHP1004": {"shipping_id": "SHP1004", "date_of_departure": "2026-04-06", "date_of_arrival": "2026-04-10"},
-    "SHP1005": {"shipping_id": "SHP1005", "date_of_departure": "2026-04-08", "date_of_arrival": "2026-04-12"},
-    "SHP1006": {"shipping_id": "SHP1006", "date_of_departure": "2026-04-11", "date_of_arrival": "2026-04-15"},
-    "SHP1007": {"shipping_id": "SHP1007", "date_of_departure": "2026-04-14", "date_of_arrival": "2026-04-18"},
-    "SHP1008": {"shipping_id": "SHP1008", "date_of_departure": "2026-04-16", "date_of_arrival": "2026-04-20"},
-    "SHP1009": {"shipping_id": "SHP1009", "date_of_departure": "2026-04-19", "date_of_arrival": "2026-04-23"},
-    "SHP1010": {"shipping_id": "SHP1010", "date_of_departure": "2026-04-22", "date_of_arrival": "2026-04-26"},
-    "SHP1011": {"shipping_id": "SHP1011", "date_of_departure": "2026-04-24", "date_of_arrival": "2026-04-28"},
-    "SHP1012": {"shipping_id": "SHP1012", "date_of_departure": "2026-04-27", "date_of_arrival": "2026-05-01"},
+    "SHP1001": {
+        "shipping_id": "SHP1001",
+        "manufacturer": "Acme Anvils Co.",
+        "manufacturer_email": "contact@acmeanvils.co",
+        "shipping_company": "SwiftShip Logistics",
+        "shipping_company_email": "ops@swiftshiplogistics.com",
+        "date_of_departure": "2026-03-30",
+        "date_of_arrival": "2026-04-02"
+    },
+    "SHP1002": {
+        "shipping_id": "SHP1002",
+        "manufacturer": "Bolt & Byte Industries",
+        "manufacturer_email": "hello@boltandbyte.io",
+        "shipping_company": "Quantum Freight",
+        "shipping_company_email": "support@quantumfreight.io",
+        "date_of_departure": "2026-04-01",
+        "date_of_arrival": "2026-04-05"
+    },
+    "SHP1003": {
+        "shipping_id": "SHP1003",
+        "manufacturer": "Nutorious Parts Ltd.",
+        "manufacturer_email": "aarontrauner.personal@gmail.com",
+        "shipping_company": "RapidRoute Carriers",
+        "shipping_company_email": "aarontrauner.personal@gmail.com",
+        "date_of_departure": "2026-04-03",
+        "date_of_arrival": "2026-04-07"
+    },
+    "SHP1004": {
+        "shipping_id": "SHP1004",
+        "manufacturer": "Widget Wizards Inc.",
+        "manufacturer_email": "magic@widgetwizards.dev",
+        "shipping_company": "BlueSky Shipping",
+        "shipping_company_email": "contact@blueskyshipping.com",
+        "date_of_departure": "2026-04-06",
+        "date_of_arrival": "2026-04-10"
+    },
+    "SHP1005": {
+        "shipping_id": "SHP1005",
+        "manufacturer": "Gearbox & Sons",
+        "manufacturer_email": "info@gearboxsons.com",
+        "shipping_company": "IronHorse Transport",
+        "shipping_company_email": "freight@ironhorsetransport.co",
+        "date_of_departure": "2026-04-08",
+        "date_of_arrival": "2026-04-12"
+    },
+    "SHP1006": {
+        "shipping_id": "SHP1006",
+        "manufacturer": "Sprocket Science LLC",
+        "manufacturer_email": "lab@sprocketscience.ai",
+        "shipping_company": "Velocity Freight",
+        "shipping_company_email": "speed@velocityfreight.com",
+        "date_of_departure": "2026-04-11",
+        "date_of_arrival": "2026-04-15"
+    },
+    "SHP1007": {
+        "shipping_id": "SHP1007",
+        "manufacturer": "Circuit Circus Co.",
+        "manufacturer_email": "ringmaster@circuitcircus.io",
+        "shipping_company": "Nova Logistics",
+        "shipping_company_email": "hello@novalogistics.io",
+        "date_of_departure": "2026-04-14",
+        "date_of_arrival": "2026-04-18"
+    },
+    "SHP1008": {
+        "shipping_id": "SHP1008",
+        "manufacturer": "TurboTonic Works",
+        "manufacturer_email": "boost@turbotonic.co",
+        "shipping_company": "Apex Shipping Co.",
+        "shipping_company_email": "apex@apexshipping.com",
+        "date_of_departure": "2026-04-16",
+        "date_of_arrival": "2026-04-20"
+    },
+    "SHP1009": {
+        "shipping_id": "SHP1009",
+        "manufacturer": "Flux Capacitor Corp.",
+        "manufacturer_email": "time@fluxcapacitor.tech",
+        "shipping_company": "TimeTrack Transport",
+        "shipping_company_email": "timeline@timetracktransit.com",
+        "date_of_departure": "2026-04-19",
+        "date_of_arrival": "2026-04-23"
+    },
+    "SHP1010": {
+        "shipping_id": "SHP1010",
+        "manufacturer": "MegaMold Makers",
+        "manufacturer_email": "mold@megamoldmakers.com",
+        "shipping_company": "Titan Freight Lines",
+        "shipping_company_email": "cargo@titanfreightlines.com",
+        "date_of_departure": "2026-04-22",
+        "date_of_arrival": "2026-04-26"
+    },
+    "SHP1011": {
+        "shipping_id": "SHP1011",
+        "manufacturer": "Piston & Co.",
+        "manufacturer_email": "revs@pistonco.com",
+        "shipping_company": "EagleEye Carriers",
+        "shipping_company_email": "view@eagleeyecarriers.com",
+        "date_of_departure": "2026-04-24",
+        "date_of_arrival": "2026-04-28"
+    },
+    "SHP1012": {
+        "shipping_id": "SHP1012",
+        "manufacturer": "Alloy All-Stars Ltd.",
+        "manufacturer_email": "team@alloyallstars.io",
+        "shipping_company": "Horizon Haulage",
+        "shipping_company_email": "route@horizonhaulage.com",
+        "date_of_departure": "2026-04-27",
+        "date_of_arrival": "2026-05-01"
+    },
 }
 
 
@@ -93,7 +190,7 @@ class ShippingHandler(BaseHTTPRequestHandler):
 
         if not all([shipping_id, date_departure, date_arrival]):
             self.send_json(400, {"status": 400, "error": "Bad Request",
-                                 "message": "All fields required: shipping_id, date_of_departure, date_of_arrival"})
+                                 "message": "Required fields: shipping_id, date_of_departure, date_of_arrival"})
             return
 
         dep_dt = parse_date(date_departure)
@@ -110,9 +207,13 @@ class ShippingHandler(BaseHTTPRequestHandler):
 
         is_overwrite = shipping_id in shipments
         shipments[shipping_id] = {
-            "shipping_id":       shipping_id,
-            "date_of_departure": date_departure,
-            "date_of_arrival":   date_arrival,
+            "shipping_id":            shipping_id,
+            "manufacturer":           str(body.get("manufacturer",           "")).strip(),
+            "manufacturer_email":     str(body.get("manufacturer_email",     "")).strip(),
+            "shipping_company":       str(body.get("shipping_company",       "")).strip(),
+            "shipping_company_email": str(body.get("shipping_company_email", "")).strip(),
+            "date_of_departure":      date_departure,
+            "date_of_arrival":        date_arrival,
         }
 
         status_code = 200 if is_overwrite else 201
@@ -126,11 +227,11 @@ class ShippingHandler(BaseHTTPRequestHandler):
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    server = HTTPServer(("", PORT), ShippingHandler)
-    print(f"Shipping API running at http://localhost:{PORT}")
-    print(f"  GET  http://localhost:{PORT}/api/shipments")
-    print(f"  GET  http://localhost:{PORT}/api/shipments?id=SHP1001")
-    print(f"  POST http://localhost:{PORT}/api/shipments")
+    server = HTTPServer(("0.0.0.0", PORT), ShippingHandler)
+    print(f"Shipping API running on port {PORT}")
+    print(f"  GET  /api/shipments")
+    print(f"  GET  /api/shipments?id=SHP1001")
+    print(f"  POST /api/shipments")
     print("Press Ctrl+C to stop.\n")
     try:
         server.serve_forever()
